@@ -11,9 +11,9 @@ abstract class SqlAdapter implements AdapterInterface
     /**
      * {@inheritDoc}
      */
-    protected function deleteExpired(\DateTime $time)
+    protected function deleteExpired(\DateTimeInterface $time)
     {
-        $sqlDate = $time->format('Y-m-d H:i:s');
+        $sqlDate = $time->format(\DateTime::ISO8601);
         $query   = 'DELETE FROM %table% WHERE expire_date < ?';
 
         $this->exec($query, array($sqlDate));
@@ -21,15 +21,10 @@ abstract class SqlAdapter implements AdapterInterface
 
     /**
      * Invalidate old locks
-     *
-     * @param integer $ttl time to leave in seconds
      */
-    protected function invalidate($ttl)
+    protected function invalidate()
     {
-        $time = new \DateTime;
-        $time->sub(new \DateInterval(sprintf('PT0H0M%sS', $ttl)));
-
-        $adapter->deleteExpired($time);
+        $this->deleteExpired(new \DateTime('now', new \DateTimeZone('UTC')));
     }
 
     /**
@@ -55,11 +50,13 @@ abstract class SqlAdapter implements AdapterInterface
      */
     public function acquire($key, $ttl)
     {
-        $this->invalidate($ttl);
+        $this->invalidate();
+
+        $time = new \DateTime('now', new \DateTimeZone('UTC'));
+        $time->add(new \DateInterval(sprintf('PT0H0M%sS', $ttl)));
 
         $query   = 'INSERT INTO %table% (expire_date, semaphore_key) VALUES(?, ?)';
-        $time    = new \DateTime;
-        $sqlDate = $time->format('Y-m-d H:i:s');
+        $sqlDate = $time->format(\DateTime::ISO8601);
         $ok = $this->insert($query, array($sqlDate, $key));
 
         return $ok ? $key : null;
