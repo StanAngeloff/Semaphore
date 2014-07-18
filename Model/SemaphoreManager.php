@@ -73,7 +73,11 @@ class SemaphoreManager implements SemaphoreManagerInterface
     protected function getKey($key)
     {
         if (is_object($key)) {
-            $key = spl_object_hash($key);
+            if (method_exists($key, '__toString')) {
+                $key = $key->__toString();
+            } else {
+                $key = spl_object_hash($key);
+            }
         }
         return $this->prefix . $key;
     }
